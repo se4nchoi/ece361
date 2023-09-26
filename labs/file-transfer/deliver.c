@@ -14,8 +14,7 @@ main(int argc, char * argv[])
     FILE *fp;
     struct hostent *hp;
     struct sockaddr_in sin;
-    char *host;
-    int *port;
+    char *host, *port;
     char buf[MAX_LINE];
     int s;
     int len;

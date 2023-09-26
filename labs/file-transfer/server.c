@@ -33,7 +33,7 @@ main(int argc, char * argv[])
     int s, new_s;
     int nBytes;
 
-    int *port;
+    char *port;
     if (argc==2) {
         port = argv[1];
     }
@@ -64,16 +64,16 @@ main(int argc, char * argv[])
     /* wait for connection, then receive and print text */
     while(1) {
         /* print information of sin */
-        printf("Numeric: %u\n", ntoh(sin.sin_addr.s_addr));
+        printf("Numeric: %u\n", ntohl(sin.sin_addr.s_addr));
         printf("sin_port: %d\n", sin.sin_port);
-        printf("s_addr: %d\n", ntoh(sin.sin_addr.s_addr));
+        printf("s_addr: %d\n", ntohl(sin.sin_addr.s_addr));
 
         printf("\nWaiting for file ...\n");
         nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&sin, addrlen);
         
         printf("%d Bytes received", nBytes);
 
-        close(s);
+        pclose(s);
         exit(1);
     }
 }
