@@ -5,8 +5,19 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <stdbool.h>
 
 #define MAX_LINE 256
+
+bool fileExists (char *filename) {
+    printf("%s\n", filename);
+    FILE *fp = fopen(filename, "r");
+    if (fp) {
+        fclose(fp);
+        return true;
+    }
+    return false;
+}
 
 int
 main(int argc, char * argv[])
@@ -24,7 +35,7 @@ main(int argc, char * argv[])
         port = argv[2];
     }
     else {
-        fprintf(stderr, "usage: simplex-talk host\n");
+        fprintf(stderr, "Input: deliver <server address> <server port number>\n");
         exit(1);
     }
 
@@ -39,33 +50,70 @@ main(int argc, char * argv[])
     bzero((char *)&sin, sizeof(sin));
     sin.sin_family = AF_INET;
     bcopy(hp->h_addr_list[0], (char *)&sin.sin_addr, hp->h_length);
-    sin.sin_port = htons(port);
-    int addrlen = sizeof(sin);
+    /* TODO: make it such that it can take any port */
+    sin.sin_port = htons(5432);
+    socklen_t addrlen = sizeof(sin);
 
-    /* active open */
-    if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("simplex-talk: socket");
+    /* set up socket */
+    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Socket not set up\n");
+        exit(1);
+    }
+
+    printf("Type in filename (ex. ftp <file name>):\n");
+    scanf("%s", buf);
+
+    char* substr = malloc(4);
+
+    strncpy(substr, buf, 3);
+    if (strcmp(substr,"ftp")==0) {
+        printf("Invalid command\n");
         exit(1);
     }
     
+    char *filename = buf[4];
+    if (fileExists(filename)) {
+        // ping server with "ftp"
+        sendto(s, "ftp", 3, 0, (struct sockaddr*)&sin, addrlen);
+        printf("[+] FTP ping sent\n");
+        // wait for "yes"
+        bzero(buf, MAX_LINE);
+        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&sin, &addrlen);
+        printf("[+] Ack recv: %s\n", buf);
 
-    /* main loop: get and send lines of text */
-    while (fgets(buf, sizeof(buf), stdin)) {
-        /* print information of sin*/
-        printf("Numeric: %u\n", ntohl(sin.sin_addr.s_addr));
-        printf("sin_port: %d\n", sin.sin_port);
-        printf("s_addr: %d\n", ntohl(sin.sin_addr.s_addr));
+        strncpy(substr, buf, 3);
+        if (strcmp(substr, "yes") != 0) {
+            printf("Server did not respond with \"yes\"\n");
+            exit(1);
+        } else {
+            printf("A file transfer can start.\n");
+        }
 
-        buf[MAX_LINE-1] = '\0';
-        len = strlen(buf) + 1;
-
-        printf("\nPlease enter text:\n");
-        scanf("%s", buf);
-        sendto(s, buf, len, 0, (struct sockaddr *)&sin, addrlen);
-        
-
-        close(s);
+    } else {
+        printf("File does not exist\n");
         exit(1);
     }
+
+    close(s);
+    exit(1);
+
+    // /* main loop: get and send lines of text */
+    // while (1) {
+    //     /* print information of sin*/
+    //     printf("sin_port: %d\n", sin.sin_port);
+    //     printf("s_addr: %d\n", ntohl(sin.sin_addr.s_addr));
+
+    //     // 1. ask for "ftp <filename>"
+    //     // 2. check existence of file; exit if not exist; send ftp to server
+    //     // 3. wait to receive from server
+
+    //     fgets(buf, sizeof(buf), stdin);
+
+    //     sendto(s, (char *) buf, MAX_LINE, 0, (struct sockaddr *)&sin, addrlen);
+
+    //     printf("Message sent");
+    //     close(s);
+    //     exit(1);
+    // }
 
 }
