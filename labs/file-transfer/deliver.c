@@ -10,7 +10,6 @@
 #define MAX_LINE 256
 
 bool fileExists (char *filename) {
-    printf("%s\n", filename);
     FILE *fp = fopen(filename, "r");
     if (fp) {
         fclose(fp);
@@ -24,7 +23,8 @@ main(int argc, char * argv[])
 {
     FILE *fp;
     struct hostent *hp;
-    struct sockaddr_in sin;
+    struct sockaddr_in client_addr, server_addr;
+    socklen_t server_addrlen, client_addrlen;
     char *host, *port;
     char buf[MAX_LINE];
     int s;
@@ -47,12 +47,12 @@ main(int argc, char * argv[])
     }
 
     /* build address data structure */
-    bzero((char *)&sin, sizeof(sin));
-    sin.sin_family = AF_INET;
-    bcopy(hp->h_addr_list[0], (char *)&sin.sin_addr, hp->h_length);
+    bzero((char *)&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    bcopy(hp->h_addr_list[0], (char *)&server_addr.sin_addr, hp->h_length);
     /* TODO: make it such that it can take any port */
-    sin.sin_port = htons(5432);
-    socklen_t addrlen = sizeof(sin);
+    server_addr.sin_port = htons(5432);
+    server_addrlen = sizeof(server_addr);
 
     /* set up socket */
     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -77,11 +77,11 @@ main(int argc, char * argv[])
     char* filename = &buf[4];
     if (fileExists(filename)) {
         // ping server with "ftp"
-        sendto(s, "ftp", 3, 0, (struct sockaddr*)&sin, addrlen);
+        sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
         printf("[+] FTP ping sent\n");
         // wait for "yes"
         bzero(buf, MAX_LINE);
-        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&sin, &addrlen);
+        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
         printf("[+] Ack recv: %s\n", buf);
 
         strncpy(substr, buf, 3);
@@ -99,24 +99,5 @@ main(int argc, char * argv[])
 
     close(s);
     exit(1);
-
-    // /* main loop: get and send lines of text */
-    // while (1) {
-    //     /* print information of sin*/
-    //     printf("sin_port: %d\n", sin.sin_port);
-    //     printf("s_addr: %d\n", ntohl(sin.sin_addr.s_addr));
-
-    //     // 1. ask for "ftp <filename>"
-    //     // 2. check existence of file; exit if not exist; send ftp to server
-    //     // 3. wait to receive from server
-
-    //     fgets(buf, sizeof(buf), stdin);
-
-    //     sendto(s, (char *) buf, MAX_LINE, 0, (struct sockaddr *)&sin, addrlen);
-
-    //     printf("Message sent");
-    //     close(s);
-    //     exit(1);
-    // }
 
 }

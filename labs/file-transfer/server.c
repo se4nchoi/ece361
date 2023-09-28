@@ -9,27 +9,13 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
-// // function to receive file
-// int recvFile(char* buf, int s)
-// {
-//     int i;
-//     char ch;
-//     for (i = 0; i < s; i++) {
-//         ch = buf[i];
-//         if (ch == EOF)
-//             return 1;
-//         else
-//             printf("%c", ch);
-//     }
-//     return 0;
-// }
-
 int
 main(int argc, char * argv[])
 {
-    struct sockaddr_in sin;
+    struct sockaddr_in client_addr, server_addr;
+    socklen_t server_addrlen, client_addrlen;
     char buf[MAX_LINE];
-    int buf_len, addr_len;
+    int buf_len;
     int s, new_s;
     int nBytes;
 
@@ -43,11 +29,11 @@ main(int argc, char * argv[])
     }
 
     /* build address data structure */
-    bzero((char *)&sin, sizeof(sin));
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = INADDR_ANY;
-    sin.sin_port = htons(5432);
-    socklen_t addrlen = sizeof(sin);
+    bzero((char *)&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(5432);
+    server_addrlen = sizeof(server_addr);
 
 
     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -55,7 +41,7 @@ main(int argc, char * argv[])
         exit(1);
     }
 
-    if ((bind(s, (struct sockaddr *)&sin, sizeof(sin))) < 0) {
+    if ((bind(s, (struct sockaddr *)&server_addr, sizeof(server_addr))) < 0) {
         perror("simplex-talk: bind");
         exit(1);
     }
@@ -65,19 +51,20 @@ main(int argc, char * argv[])
     /* wait for connection, then receive and print text */
     while(1) {
         /* print information of sin */
-        printf("sin_port: %d\n", sin.sin_port);
-        printf("s_addr: %d\n", ntohl(sin.sin_addr.s_addr));
+        printf("sin_port: %d\n", server_addr.sin_port);
+        printf("s_addr: %d\n", ntohl(server_addr.sin_addr.s_addr));
 
         printf("\nWaiting for messages ...\n");
-        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr *)&sin, addrlen);
-        printf("%d Bytes received", nBytes);
+        nBytes = recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
+        buf[nBytes] = '\0';
+        printf("%d Bytes received\n", nBytes);
 
         if (strcmp(buf, "ftp")==0) {
-            printf("ftp received, sending acknowledgement");
-            sendto(s, "yes", 3, 0, (struct sockaddr*)&sin, addrlen);
-            printf("acknowledgement sent");
+            printf("ftp received, sending acknowledgement\n");
+            sendto(s, "yes", 3, 0, (struct sockaddr*)&client_addr, client_addrlen);
+            printf("acknowledgement sent\n");
         } else {
-            printf("Unknown message: %s", buf);
+            printf("Unknown message: %s\n", buf);
         }
 
         close(s);
