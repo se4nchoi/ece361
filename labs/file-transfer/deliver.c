@@ -61,17 +61,20 @@ main(int argc, char * argv[])
     }
 
     printf("Type in filename (ex. ftp <file name>):\n");
-    scanf("%s", buf);
+    gets(buf);
 
-    char* substr = malloc(4);
+    char substr[5];
 
+    memset(substr, '\0', 4);
     strncpy(substr, buf, 3);
     if (strcmp(substr,"ftp")==0) {
+        printf("Command received: %s\n", substr);
+    } else {
         printf("Invalid command\n");
         exit(1);
     }
     
-    char *filename = buf[4];
+    char* filename = &buf[4];
     if (fileExists(filename)) {
         // ping server with "ftp"
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&sin, addrlen);
