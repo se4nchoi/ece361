@@ -20,8 +20,10 @@ main(int argc, char * argv[])
     int nBytes;
 
     char *host, *port;
+    int port_int;
     if (argc==2) {
         port = argv[1];
+        port_int = atoi(port);
     }
     else {
         fprintf(stderr, "need 2 arguments: server <UDP listen port> \n");
@@ -32,7 +34,7 @@ main(int argc, char * argv[])
     bzero((char *)&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(5432);
+    server_addr.sin_port = htons(port_int);
     server_addrlen = sizeof(server_addr);
 
 

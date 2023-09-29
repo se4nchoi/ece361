@@ -26,6 +26,7 @@ main(int argc, char * argv[])
     struct sockaddr_in client_addr, server_addr;
     socklen_t server_addrlen, client_addrlen;
     char *host, *port;
+    int port_int;
     char buf[MAX_LINE];
     int s;
     int len;
@@ -33,6 +34,7 @@ main(int argc, char * argv[])
     if (argc==3) {
         host = argv[1];
         port = argv[2];
+        port_int = atoi(port);
     }
     else {
         fprintf(stderr, "Input: deliver <server address> <server port number>\n");
@@ -51,7 +53,7 @@ main(int argc, char * argv[])
     server_addr.sin_family = AF_INET;
     bcopy(hp->h_addr_list[0], (char *)&server_addr.sin_addr, hp->h_length);
     /* TODO: make it such that it can take any port */
-    server_addr.sin_port = htons(5432);
+    server_addr.sin_port = htons(port_int);
     server_addrlen = sizeof(server_addr);
 
     /* set up socket */
