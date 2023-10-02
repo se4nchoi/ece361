@@ -9,6 +9,17 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
+struct packet {
+    unsigned int total_frag;
+    unsigned int frag_no;
+    unsigned int size;
+    char* filename;
+    char filedata[1000];
+};
+
+char* getPacketFromString;
+
+
 int
 main(int argc, char * argv[])
 {

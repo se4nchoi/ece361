@@ -6,8 +6,12 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdbool.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
-#define MAX_LINE 256
+
+#define MAX_LINE 1024
 
 bool fileExists (char *filename) {
     FILE *fp = fopen(filename, "r");
@@ -30,6 +34,7 @@ main(int argc, char * argv[])
     char buf[MAX_LINE];
     int s;
     int len;
+    clock_t seconds;
 
     if (argc==3) {
         host = argv[1];
@@ -77,13 +82,15 @@ main(int argc, char * argv[])
     
     char* filename = &buf[4];
     if (fileExists(filename)) {
+        
         // ping server with "ftp"
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
-        printf("[+] FTP ping sent\n");
         // wait for "yes"
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
         printf("[+] Ack recv: %s\n", buf);
+
+        
 
         strncpy(substr, buf, 3);
         if (strcmp(substr, "yes") != 0) {
@@ -92,6 +99,36 @@ main(int argc, char * argv[])
         } else {
             printf("A file transfer can start.\n");
         }
+
+        
+        /*TODO: 
+        n. add eof (0x05) at the end of data array
+        
+        */
+
+       // check file size and compute total frag        
+
+        FILE *stream;
+        stream = fopen(filename, "r");
+        int total_frag = 1;
+        off_t filesize;
+        struct stat st;
+        stat(*filename, &st);
+        filesize = st.st_size;
+        printf("filesize: %d\n", total_frag);
+        
+       for (unsigned int i=0; i<total_frag; i++) {
+        unsigned int frag_no = i;
+        unsigned int size ;
+         
+        char filedata[1000];
+        unsigned int bytesRead = fread(&filedata, sizeof(char), 1000, stream); 
+        printf("%d", bytesRead);
+
+       }
+       fclose(stream);
+
+
 
     } else {
         printf("File does not exist\n");
