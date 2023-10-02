@@ -52,7 +52,6 @@ main(int argc, char * argv[])
     bzero((char *)&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     bcopy(hp->h_addr_list[0], (char *)&server_addr.sin_addr, hp->h_length);
-    /* TODO: make it such that it can take any port */
     server_addr.sin_port = htons(port_int);
     server_addrlen = sizeof(server_addr);
 
