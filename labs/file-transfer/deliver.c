@@ -14,6 +14,7 @@
 #define MAX_LINE 1024
 
 bool fileExists (char *filename) {
+    printf("%s\n", filename);
     FILE *fp = fopen(filename, "r");
     if (fp) {
         fclose(fp);
@@ -32,6 +33,7 @@ main(int argc, char * argv[])
     char *host, *port;
     int port_int;
     char buf[MAX_LINE];
+    char filename[256];
     int s;
     int len;
     clock_t seconds;
@@ -42,14 +44,14 @@ main(int argc, char * argv[])
         port_int = atoi(port);
     }
     else {
-        fprintf(stderr, "Input: deliver <server address> <server port number>\n");
+        fprintf(stderr, "[C] Input: deliver <server address> <server port number>\n");
         exit(1);
     }
 
     /* translate host name into peer's IP address */
     hp = gethostbyname(host);
     if (!hp) {
-        fprintf(stderr, "simplex-talk: unknown host: %s\n", host);
+        fprintf(stderr, "[C] simplex-talk: unknown host: %s\n", host);
         exit(1);
     }
 
@@ -62,11 +64,11 @@ main(int argc, char * argv[])
 
     /* set up socket */
     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("Socket not set up\n");
+        perror("[C] Socket not set up\n");
         exit(1);
     }
 
-    printf("Type in filename (ex. ftp <file name>):\n");
+    printf("[C] Type in filename (ex. ftp <file name>):\n");
     gets(buf);
 
     char substr[5];
@@ -74,13 +76,14 @@ main(int argc, char * argv[])
     memset(substr, '\0', 4);
     strncpy(substr, buf, 3);
     if (strcmp(substr,"ftp")==0) {
-        printf("Command received: %s\n", substr);
+        printf("[C] Command received: %s\n", substr);
     } else {
-        printf("Invalid command\n");
+        printf("[C] Invalid command\n");
         exit(1);
     }
-    
-    char* filename = &buf[4];
+
+    memset(filename, '\0', strlen(&buf[4])+1);
+    strncpy(filename, &buf[4], strlen(&buf[4]));
     if (fileExists(filename)) {
         
         // ping server with "ftp"
@@ -88,44 +91,41 @@ main(int argc, char * argv[])
         // wait for "yes"
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
-        printf("[+] Ack recv: %s\n", buf);
-
-        
+        printf("[C] Ack recv: %s\n", buf);
 
         strncpy(substr, buf, 3);
         if (strcmp(substr, "yes") != 0) {
-            printf("Server did not respond with \"yes\"\n");
+            printf("[C] Server did not respond with \"yes\"\n");
             exit(1);
         } else {
-            printf("A file transfer can start.\n");
+            printf("[C] A file transfer can start.\n");
         }
 
-        
+        printf("--Section 1 complete--\n");
         /*TODO: 
         n. add eof (0x05) at the end of data array
         
         */
 
-       // check file size and compute total frag        
-
+       // check file size and compute total frag 
         FILE *stream;
         stream = fopen(filename, "r");
-        int total_frag = 1;
         off_t filesize;
         struct stat st;
-        stat(*filename, &st);
+        stat(filename, &st);
         filesize = st.st_size;
-        printf("filesize: %d\n", total_frag);
+        printf("filesize: %lld\n", filesize);
         
-       for (unsigned int i=0; i<total_frag; i++) {
-        unsigned int frag_no = i;
-        unsigned int size ;
+        
+    //    for (unsigned int i=0; i<total_frag; i++) {
+    //     unsigned int frag_no = i;
+    //     unsigned int size ;
          
-        char filedata[1000];
-        unsigned int bytesRead = fread(&filedata, sizeof(char), 1000, stream); 
-        printf("%d", bytesRead);
+    //     char filedata[1000];
+    //     unsigned int bytesRead = fread(&filedata, sizeof(char), 1000, stream); 
+    //     printf("%d", bytesRead);
 
-       }
+    //    }
        fclose(stream);
 
 
