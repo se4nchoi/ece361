@@ -11,7 +11,8 @@
 #include <sys/stat.h>
 
 
-#define MAX_LINE 1024
+#define MAX_LINE 2048
+#define PKT_SIZE 1000
 
 bool fileExists (char *filename) {
     printf("%s\n", filename);
@@ -22,6 +23,8 @@ bool fileExists (char *filename) {
     }
     return false;
 }
+
+
 
 int
 main(int argc, char * argv[])
@@ -36,6 +39,7 @@ main(int argc, char * argv[])
     char filename[256];
     int s;
     int len;
+    int byte_sent;
     clock_t seconds;
 
     if (argc==3) {
@@ -107,25 +111,69 @@ main(int argc, char * argv[])
         
         */
 
-       // check file size and compute total frag 
+       // check file size
         FILE *stream;
         stream = fopen(filename, "r");
         off_t filesize;
         struct stat st;
         stat(filename, &st);
         filesize = st.st_size;
-        printf("filesize: %lld\n", filesize);
-        
-        
-    //    for (unsigned int i=0; i<total_frag; i++) {
-    //     unsigned int frag_no = i;
-    //     unsigned int size ;
-         
-    //     char filedata[1000];
-    //     unsigned int bytesRead = fread(&filedata, sizeof(char), 1000, stream); 
-    //     printf("%d", bytesRead);
+        printf("[C] Filename: %s, Filesize: %lld\n", filename, filesize);
 
-    //    }
+        int total_frag = 1+(filesize-1)/PKT_SIZE;
+        char data[1000];
+        char tmp[16];
+        unsigned int frag_no;
+        unsigned int size;
+        unsigned int ptr;
+        
+       for (unsigned int i=0; i<1; i++) {
+            bzero(buf, MAX_LINE);
+            buf[0]='\0';
+            bzero(tmp, 16);
+            tmp[0]='\0';
+            ptr = 0;
+
+            size = fread(&data, sizeof(char), PKT_SIZE, stream); 
+
+            // copy fragment number to buf
+            frag_no = i;            
+            sprintf(tmp, "%d", total_frag);
+            strcpy(buf+ptr, tmp);
+            ptr = ptr + strlen(tmp);
+            buf[ptr] = ':';
+            ptr = ptr + 1;
+            bzero(tmp, 16);
+            tmp[0]='\0';
+
+            sprintf(tmp, "%d", frag_no);
+            strcpy(buf+ptr, tmp);
+            ptr = ptr + strlen(tmp);
+            buf[ptr] = ':';
+            ptr = ptr + 1;
+            bzero(tmp, 16);
+            tmp[0]='\0';
+
+            // itoa(size, &tmp, 10);
+            sprintf(tmp, "%d", size);
+            strcpy(buf+ptr, tmp);
+            ptr = ptr + strlen(tmp);
+            buf[ptr] = ':';
+            ptr = ptr + 1;
+            bzero(tmp, 16);
+            tmp[0]='\0';
+
+            strcpy(buf+ptr, filename);
+            ptr = ptr + strlen(filename);
+            buf[ptr] = ':';
+            ptr = ptr + 1;
+            strcpy(buf+ptr, data);
+            buf[ptr+size] = '\0';
+
+            byte_sent = sendto(s, buf, 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
+            printf("[C] Packet %d of size %d sent\n", frag_no, byte_sent);
+
+       }
        fclose(stream);
 
 
