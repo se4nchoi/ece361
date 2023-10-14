@@ -111,7 +111,7 @@ main(int argc, char * argv[])
 
        // check file size
         FILE *stream;
-        stream = fopen(filename, "r");
+        stream = fopen(filename, "rb");
         off_t filesize;
         struct stat st;
         stat(filename, &st);

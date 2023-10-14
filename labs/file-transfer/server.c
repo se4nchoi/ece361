@@ -99,8 +99,12 @@ main(int argc, char * argv[])
                 printf("[S] Packet 0 acknowledgement sent\n");
                 total_frag = pkt->total_frag;
 
+                char new_filename[16] = "copy-";
+                strcat(new_filename, pkt->filename);
 
-                fp = fopen( "file.jpg" , "wb" );
+                fp = fopen( new_filename , "wb" );
+
+                printf("%s\n", pkt->filedata);
                 fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
 
                 break;
@@ -121,6 +125,8 @@ main(int argc, char * argv[])
                     sprintf(tmp+4, "%d", pkt->frag_no);
                     sendto(s, tmp, sizeof(tmp), 0, (struct sockaddr*)&client_addr, client_addrlen);
                     printf("[S] Packet %d acknowledgement sent\n", pkt->frag_no);
+
+                    // printf("%s\n", pkt->filedata);
                     fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
                     break;
                 }
@@ -141,7 +147,6 @@ void getPacketFromString(struct packet* pkt, int nBytes, char* buf){
     pkt->size = atoi(strtok(NULL, ":"));
     pkt->filename = strtok(NULL, ":");
 
-    data = pkt->filename + 1;
-    memcpy(pkt->filedata, data, sizeof(*data));
-
+    data = pkt->filename + sizeof(pkt->filename) + 1;
+    memcpy(pkt->filedata, data, pkt->size);
 }
