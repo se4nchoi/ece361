@@ -15,8 +15,7 @@
 #define PKT_SIZE 1000
 
 bool fileExists (char *filename) {
-    printf("%s\n", filename);
-    FILE *fp = fopen(filename, "r");
+    FILE *fp = fopen(filename, "rb");
     if (fp) {
         fclose(fp);
         return true;
@@ -39,7 +38,6 @@ main(int argc, char * argv[])
     char filename[256];
     int s;
     int len;
-    int byte_sent;
     clock_t seconds;
 
     if (argc==3) {
@@ -123,57 +121,88 @@ main(int argc, char * argv[])
         int total_frag = 1+(filesize-1)/PKT_SIZE;
         char data[1000];
         char tmp[16];
+        char tmp2[16];
         unsigned int frag_no;
         unsigned int size;
         unsigned int ptr;
+
+        int bytes_sent;
+        int timeout;
         
-       for (unsigned int i=0; i<1; i++) {
+       for (unsigned int i=0; i<total_frag; i++) {
             bzero(buf, MAX_LINE);
-            buf[0]='\0';
             bzero(tmp, 16);
-            tmp[0]='\0';
             ptr = 0;
 
-            size = fread(&data, sizeof(char), PKT_SIZE, stream); 
+            size = fread(data, sizeof(char), PKT_SIZE, stream); 
 
-            // copy fragment number to buf
-            frag_no = i;            
+            frag_no = i;      
+
+            // copy total number of fragments     
             sprintf(tmp, "%d", total_frag);
-            strcpy(buf+ptr, tmp);
+            memcpy(buf+ptr, tmp, strlen(tmp));
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
             bzero(tmp, 16);
             tmp[0]='\0';
 
+            // copy fragment number
             sprintf(tmp, "%d", frag_no);
-            strcpy(buf+ptr, tmp);
+            memcpy(buf+ptr, tmp, strlen(tmp));
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
             bzero(tmp, 16);
             tmp[0]='\0';
 
-            // itoa(size, &tmp, 10);
+            // copy size of data
             sprintf(tmp, "%d", size);
-            strcpy(buf+ptr, tmp);
+            memcpy(buf+ptr, tmp, strlen(tmp));
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
             bzero(tmp, 16);
             tmp[0]='\0';
 
-            strcpy(buf+ptr, filename);
+            // copy filename
+            memcpy(buf+ptr, filename, strlen(filename));
             ptr = ptr + strlen(filename);
             buf[ptr] = ':';
             ptr = ptr + 1;
-            strcpy(buf+ptr, data);
-            buf[ptr+size] = '\0';
+            memcpy(buf+ptr, data, size);
+            ptr = ptr + size;
 
-            byte_sent = sendto(s, buf, 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
-            printf("[C] Packet %d of size %d sent\n", frag_no, byte_sent);
+            // printf("%s", buf);
+            timeout = 0;
+            while (1) {
+                bytes_sent = sendto(s, buf, ptr, 0, (struct sockaddr*)&server_addr, server_addrlen);
+                printf("[C] Packet %d of size %d sent\n", frag_no, bytes_sent);
+                recvfrom(s, (char *) tmp, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
+
+                memcpy(tmp2, "ACK ", 4);
+                sprintf(tmp2+4, "%d", frag_no);
+
+
+                if (strcmp(tmp, tmp2)==0){
+                    printf("[C] Packet %d acknowledged\n", frag_no);
+                    bzero(data, 1000);
+                    break;
+                } else {
+                    printf("[C] Packet not acknowledged, sending again\n");
+                    timeout = timeout + 1;
+                    if (timeout > 16) {
+                        printf("[C] Timeout: tried 16 times\n");
+                        fclose(stream);
+                        exit(1);
+                    }
+                }
+            }
+
 
        }
+
+
        fclose(stream);
 
 

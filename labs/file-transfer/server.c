@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/stat.h>
+
 
 #define MAX_PENDING 5
-#define MAX_LINE 256
+#define MAX_LINE 2048
 
 struct packet {
     unsigned int total_frag;
@@ -17,7 +20,7 @@ struct packet {
     char filedata[1000];
 };
 
-char* getPacketFromString;
+void getPacketFromString(struct packet* pkt, int nBytes, char* buf);
 
 
 int
@@ -26,6 +29,7 @@ main(int argc, char * argv[])
     struct sockaddr_in client_addr, server_addr;
     socklen_t server_addrlen, client_addrlen;
     char buf[MAX_LINE];
+    char tmp[16];
     int buf_len;
     int s, new_s;
     int nBytes;
@@ -50,37 +54,94 @@ main(int argc, char * argv[])
 
 
     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("simplex-talk: socket");
+        perror("[S] simplex-talk: socket");
         exit(1);
     }
 
     if ((bind(s, (struct sockaddr *)&server_addr, sizeof(server_addr))) < 0) {
-        perror("simplex-talk: bind");
+        perror("[S] simplex-talk: bind");
         exit(1);
     }
 
-    printf("Done with binding");
+    printf("[S] Done with binding");
 
     /* wait for connection, then receive and print text */
     while(1) {
-        /* print information of sin */
-        printf("sin_port: %d\n", server_addr.sin_port);
-        printf("s_addr: %d\n", ntohl(server_addr.sin_addr.s_addr));
-
-        printf("\nWaiting for messages ...\n");
+        printf("\n[S] Waiting for messages ...\n");
         nBytes = recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
-        buf[nBytes] = '\0';
-        printf("%d Bytes received\n", nBytes);
 
         if (strcmp(buf, "ftp")==0) {
-            printf("ftp received, sending acknowledgement\n");
+            printf("[S] ftp received, sending acknowledgement\n");
             sendto(s, "yes", 3, 0, (struct sockaddr*)&client_addr, client_addrlen);
-            printf("acknowledgement sent\n");
+            printf("[S] acknowledgement sent\n");
         } else {
-            printf("Unknown message: %s\n", buf);
+            printf("[S] Unknown message: %s\n", buf);
         }
+
+        FILE *fp;
+        int total_frag;
+        struct packet* pkt;
+        pkt = (struct packet*) malloc(sizeof(struct packet));
+
+        // receiving and acknowledging the first packet
+        while (1) {
+            nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
+            printf("[S] %d bytes received\n", nBytes);
+            getPacketFromString(pkt, nBytes, buf);
+
+            if (pkt->frag_no!=0){
+                printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
+                sendto(s, "NACK", 4, 0, (struct sockaddr*)&client_addr, client_addrlen);
+            } else {
+                memcpy(tmp, "ACK ", 4);
+                sprintf(tmp+4, "%d", pkt->frag_no);
+                sendto(s, tmp, sizeof(tmp), 0, (struct sockaddr*)&client_addr, client_addrlen);
+                printf("[S] Packet 0 acknowledgement sent\n");
+                total_frag = pkt->total_frag;
+
+
+                fp = fopen( "file.jpg" , "wb" );
+                fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
+
+                break;
+            }
+        }
+
+        // receiving the remaining packets
+        for (int i=1; i<total_frag; i++) {
+            while (1) {
+                nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
+                printf("[S] %d bytes received\n", nBytes);
+                getPacketFromString(pkt, nBytes, buf);
+                if (pkt->frag_no!=i){
+                    printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
+                    sendto(s, "NACK", 4, 0, (struct sockaddr*)&client_addr, client_addrlen);
+                } else {
+                    memcpy(tmp, "ACK ", 4);
+                    sprintf(tmp+4, "%d", pkt->frag_no);
+                    sendto(s, tmp, sizeof(tmp), 0, (struct sockaddr*)&client_addr, client_addrlen);
+                    printf("[S] Packet %d acknowledgement sent\n", pkt->frag_no);
+                    fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
+                    break;
+                }
+            }
+        }
+
+        fclose(fp);
 
         close(s);
         exit(1);
     }
+}
+
+void getPacketFromString(struct packet* pkt, int nBytes, char* buf){
+    char* data;    
+    pkt->total_frag = atoi(strtok(buf, ":"));
+    pkt->frag_no = atoi(strtok(NULL, ":"));
+    pkt->size = atoi(strtok(NULL, ":"));
+    pkt->filename = strtok(NULL, ":");
+
+    data = pkt->filename + 1;
+    memcpy(pkt->filedata, data, sizeof(*data));
+
 }
