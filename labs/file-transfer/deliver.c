@@ -9,10 +9,29 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 
 
 #define MAX_LINE 2048
 #define PKT_SIZE 1000
+
+enum { NS_PER_SECOND = 1000000000 };
+
+void sub_timespec(struct timespec t1, struct timespec t2, struct timespec *td)
+{
+    td->tv_nsec = t2.tv_nsec - t1.tv_nsec;
+    td->tv_sec  = t2.tv_sec - t1.tv_sec;
+    if (td->tv_sec > 0 && td->tv_nsec < 0)
+    {
+        td->tv_nsec += NS_PER_SECOND;
+        td->tv_sec--;
+    }
+    else if (td->tv_sec < 0 && td->tv_nsec > 0)
+    {
+        td->tv_nsec -= NS_PER_SECOND;
+        td->tv_sec++;
+    }
+}
 
 bool fileExists (char *filename) {
     FILE *fp = fopen(filename, "rb");
@@ -87,12 +106,14 @@ main(int argc, char * argv[])
     memset(filename, '\0', strlen(&buf[4])+1);
     strncpy(filename, &buf[4], strlen(&buf[4]));
     if (fileExists(filename)) {
-        
+        struct timespec start, finish, delta;
         // ping server with "ftp"
+        clock_gettime(CLOCK_REALTIME, &start);
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
         // wait for "yes"
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
+        clock_gettime(CLOCK_REALTIME, &finish);
         printf("[C] Ack recv: %s\n", buf);
 
         strncpy(substr, buf, 3);
@@ -104,6 +125,11 @@ main(int argc, char * argv[])
         }
 
         printf("--Section 1 complete--\n");
+
+        sub_timespec(start, finish, &delta);
+        printf("Time passed: %d.%.9ld\n", (int)delta.tv_sec, delta.tv_nsec);
+        printf("--Section 2 complete--\n");
+
         /*TODO: 
         n. add eof (0x05) at the end of data array
         
@@ -198,9 +224,9 @@ main(int argc, char * argv[])
                     }
                 }
             }
-
-
        }
+        printf("--Section 3 complete--\n");
+
 
 
        fclose(stream);

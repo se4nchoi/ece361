@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "/u/b/xuetingk/ece361/labs/file-transfer"
+    "cmake.sourceDirectory": "/u/b/xuetingk/ece361/labs/file-transfer",
+    "files.associations": {
+        "stdlib.h": "c"
+    }
 }
