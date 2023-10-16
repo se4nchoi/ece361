@@ -57,7 +57,7 @@ main(int argc, char * argv[])
     char filename[256];
     int s;
     int len;
-    clock_t seconds;
+    clock_t resp_time;
 
     if (argc==3) {
         host = argv[1];
@@ -107,6 +107,10 @@ main(int argc, char * argv[])
     strncpy(filename, &buf[4], strlen(&buf[4]));
     if (fileExists(filename)) {
         struct timespec start, finish, delta;
+
+        // SECTION 2 (round trip time)
+        clock_t resp_time = clock();
+
         // ping server with "ftp"
         clock_gettime(CLOCK_REALTIME, &start);
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
@@ -114,8 +118,12 @@ main(int argc, char * argv[])
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
         clock_gettime(CLOCK_REALTIME, &finish);
-        printf("[C] Ack recv: %s\n", buf);
 
+        resp_time = clock() - resp_time;
+        double trip_time = ((double)resp_time)/CLOCKS_PER_SEC; // seconds
+
+        printf("[C] Ack recv: %s\n", buf);
+    
         strncpy(substr, buf, 3);
         if (strcmp(substr, "yes") != 0) {
             printf("[C] Server did not respond with \"yes\"\n");
@@ -128,6 +136,8 @@ main(int argc, char * argv[])
 
         sub_timespec(start, finish, &delta);
         printf("Time passed: %d.%.9ld\n", (int)delta.tv_sec, delta.tv_nsec);
+
+        printf("[] Round trip time: %f s\n", trip_time);
         printf("--Section 2 complete--\n");
 
         /*TODO: 
