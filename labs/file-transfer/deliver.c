@@ -14,6 +14,7 @@
 
 #define MAX_LINE 2048
 #define PKT_SIZE 1000
+#define TMP_SIZE 64
 
 enum { NS_PER_SECOND = 1000000000 };
 
@@ -146,8 +147,8 @@ main(int argc, char * argv[])
 
         int total_frag = 1+(filesize-1)/PKT_SIZE;
         char data[1000];
-        char tmp[16];
-        char tmp2[16];
+        char tmp[TMP_SIZE];
+        char tmp2[TMP_SIZE];
         unsigned int frag_no;
         unsigned int size;
         unsigned int ptr;
@@ -157,7 +158,7 @@ main(int argc, char * argv[])
         
        for (unsigned int i=0; i<total_frag; i++) {
             bzero(buf, MAX_LINE);
-            bzero(tmp, 16);
+            bzero(tmp, TMP_SIZE);
             ptr = 0;
 
             size = fread(data, sizeof(char), PKT_SIZE, stream); 
@@ -170,7 +171,7 @@ main(int argc, char * argv[])
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
-            bzero(tmp, 16);
+            bzero(tmp, TMP_SIZE);
             tmp[0]='\0';
 
             // copy fragment number
@@ -179,7 +180,7 @@ main(int argc, char * argv[])
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
-            bzero(tmp, 16);
+            bzero(tmp, TMP_SIZE);
             tmp[0]='\0';
 
             // copy size of data
@@ -188,7 +189,7 @@ main(int argc, char * argv[])
             ptr = ptr + strlen(tmp);
             buf[ptr] = ':';
             ptr = ptr + 1;
-            bzero(tmp, 16);
+            bzero(tmp, TMP_SIZE);
             tmp[0]='\0';
 
             // copy filename
@@ -199,7 +200,6 @@ main(int argc, char * argv[])
             memcpy(buf+ptr, data, size);
             ptr = ptr + size;
 
-            // printf("%s", buf);
             timeout = 0;
             while (1) {
                 bytes_sent = sendto(s, buf, ptr, 0, (struct sockaddr*)&server_addr, server_addrlen);

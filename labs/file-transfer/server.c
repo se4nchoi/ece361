@@ -89,6 +89,7 @@ main(int argc, char * argv[])
             nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
             printf("[S] %d bytes received\n", nBytes);
             getPacketFromString(pkt, nBytes, buf);
+            printf("%s\n", buf);
 
             if (pkt->frag_no!=0){
                 printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
@@ -100,12 +101,11 @@ main(int argc, char * argv[])
                 printf("[S] Packet 0 acknowledgement sent\n");
                 total_frag = pkt->total_frag;
 
-                char new_filename[16] = "copy-";
+                char new_filename[64] = "copy-";
                 strcat(new_filename, pkt->filename);
 
                 fp = fopen( new_filename , "wb" );
 
-                printf("%s\n", pkt->filedata);
                 fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
 
                 break;
@@ -118,6 +118,7 @@ main(int argc, char * argv[])
                 nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
                 printf("[S] %d bytes received\n", nBytes);
                 getPacketFromString(pkt, nBytes, buf);
+
                 if (pkt->frag_no!=i){
                     printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
                     sendto(s, "NACK", 4, 0, (struct sockaddr*)&client_addr, client_addrlen);
