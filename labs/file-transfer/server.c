@@ -105,7 +105,6 @@ main(int argc, char * argv[])
 
                 fp = fopen( new_filename , "wb" );
 
-                printf("%s\n", pkt->filedata);
                 fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
 
                 break;
@@ -113,7 +112,8 @@ main(int argc, char * argv[])
         }
 
         // receiving the remaining packets
-        for (int i=1; i<total_frag; i++) {
+        // change here to total_frag for correct implementation
+        for (int i=1; i<3; i++) {
             while (1) {
                 nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
                 printf("[S] %d bytes received\n", nBytes);

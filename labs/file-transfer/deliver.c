@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
-
+#include <errno.h>
 
 #define MAX_LINE 2048
 #define PKT_SIZE 1000
@@ -83,10 +83,16 @@ main(int argc, char * argv[])
     server_addr.sin_port = htons(port_int);
     server_addrlen = sizeof(server_addr);
 
-    /* set up socket */
     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("[C] Socket not set up\n");
         exit(1);
+    }
+
+    /* set up socket */
+    struct timeval timeout={0,500}; //set timeout for 2 seconds
+    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
+        perror("Error in setting timeout");
+        exit(EXIT_FAILURE);
     }
 
     printf("[C] Type in filename (ex. ftp <file name>):\n");
@@ -116,7 +122,7 @@ main(int argc, char * argv[])
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
         // wait for "yes"
         bzero(buf, MAX_LINE);
-        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
+        recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, &server_addrlen);
         clock_gettime(CLOCK_REALTIME, &finish);
 
         resp_time = clock() - resp_time;
@@ -135,17 +141,12 @@ main(int argc, char * argv[])
         printf("--Section 1 complete--\n");
 
         sub_timespec(start, finish, &delta);
-        printf("Time passed: %d.%.9ld\n", (int)delta.tv_sec, delta.tv_nsec);
+        // printf("Time passed: %d.%.9ld\n", (int)delta.tv_sec, delta.tv_nsec);
 
         printf("[] Round trip time: %f s\n", trip_time);
         printf("--Section 2 complete--\n");
 
-        /*TODO: 
-        n. add eof (0x05) at the end of data array
         
-        */
-
-       // check file size
         FILE *stream;
         stream = fopen(filename, "rb");
         off_t filesize;
@@ -165,6 +166,7 @@ main(int argc, char * argv[])
         int bytes_sent;
         int timeout;
         
+        // sending each fragment
        for (unsigned int i=0; i<total_frag; i++) {
             bzero(buf, MAX_LINE);
             bzero(tmp, 16);
@@ -209,30 +211,35 @@ main(int argc, char * argv[])
             memcpy(buf+ptr, data, size);
             ptr = ptr + size;
 
-            // printf("%s", buf);
+            // repeat sending this fragment
             timeout = 0;
             while (1) {
                 bytes_sent = sendto(s, buf, ptr, 0, (struct sockaddr*)&server_addr, server_addrlen);
                 printf("[C] Packet %d of size %d sent\n", frag_no, bytes_sent);
-                recvfrom(s, (char *) tmp, MAX_LINE, 0, (struct sockaddr*)&server_addr, server_addrlen);
+                int recvlen = recvfrom(s, (char *) tmp, MAX_LINE, 0, (struct sockaddr*)&server_addr, &server_addrlen);
 
-                memcpy(tmp2, "ACK ", 4);
-                sprintf(tmp2+4, "%d", frag_no);
+                if (recvlen >=0 ) {
+                    memcpy(tmp2, "ACK ", 4);
+                    sprintf(tmp2+4, "%d", frag_no);
 
-
-                if (strcmp(tmp, tmp2)==0){
-                    printf("[C] Packet %d acknowledged\n", frag_no);
-                    bzero(data, 1000);
-                    break;
+                    if (strcmp(tmp, tmp2)==0){
+                        printf("[C] Packet %d acknowledged\n", frag_no);
+                        bzero(data, 1000);
+                        break;
+                    } 
                 } else {
-                    printf("[C] Packet not acknowledged, sending again\n");
+                    printf("[C] Error no: %d\n", errno);
+                    printf("[C] Packet %d not acknowledged, sending again\n", frag_no);
                     timeout = timeout + 1;
-                    if (timeout > 16) {
-                        printf("[C] Timeout: tried 16 times\n");
+                    if (timeout >= 16) {
+                        printf("[C] Timeout too many time. Abort\n");
                         fclose(stream);
+                        close(s);
                         exit(1);
                     }
+                    continue;
                 }
+
             }
        }
         printf("--Section 3 complete--\n");
