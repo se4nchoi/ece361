@@ -113,7 +113,7 @@ main(int argc, char * argv[])
 
         // receiving the remaining packets
         // change here to total_frag for correct implementation
-        for (int i=1; i<3; i++) {
+        for (int i=1; i<total_frag; i++) {
             while (1) {
                 nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
                 printf("[S] %d bytes received\n", nBytes);

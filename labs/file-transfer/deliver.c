@@ -11,12 +11,15 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <errno.h>
+#include <math.h>
+
 
 #define MAX_LINE 2048
 #define PKT_SIZE 1000
 
 enum { NS_PER_SECOND = 1000000000 };
 
+long calculateSD(long data[]);
 void sub_timespec(struct timespec t1, struct timespec t2, struct timespec *td)
 {
     td->tv_nsec = t2.tv_nsec - t1.tv_nsec;
@@ -58,6 +61,14 @@ main(int argc, char * argv[])
     int s;
     int len;
     clock_t resp_time;
+    struct timeval timeout={0,0}; 
+    struct timespec start, finish, delta;
+
+    long timeout_vals[2048];
+    long total = 0;
+    long stddev = 0;
+    long count = 1;
+    long to_to_use;
 
     if (argc==3) {
         host = argv[1];
@@ -88,15 +99,15 @@ main(int argc, char * argv[])
         exit(1);
     }
 
-    /* set up socket */
-    struct timeval timeout={0,500}; //set timeout for 2 seconds
-    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
-        perror("Error in setting timeout");
-        exit(EXIT_FAILURE);
-    }
+    // /* set up socket */
+    // struct timeval timeout={0,500}; 
+    // if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
+    //     perror("Error in setting timeout");
+    //     exit(EXIT_FAILURE);
+    // }
 
     printf("[C] Type in filename (ex. ftp <file name>):\n");
-    gets(buf);
+    // scanf("%s\n", buf);
 
     char substr[5];
 
@@ -111,19 +122,19 @@ main(int argc, char * argv[])
 
     memset(filename, '\0', strlen(&buf[4])+1);
     strncpy(filename, &buf[4], strlen(&buf[4]));
+    printf("%s\n", filename);
     if (fileExists(filename)) {
-        struct timespec start, finish, delta;
 
         // SECTION 2 (round trip time)
         clock_t resp_time = clock();
 
         // ping server with "ftp"
-        clock_gettime(CLOCK_REALTIME, &start);
+        // clock_gettime(CLOCK_REALTIME, &start);
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
         // wait for "yes"
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, &server_addrlen);
-        clock_gettime(CLOCK_REALTIME, &finish);
+        // clock_gettime(CLOCK_REALTIME, &finish);
 
         resp_time = clock() - resp_time;
         double trip_time = ((double)resp_time)/CLOCKS_PER_SEC; // seconds
@@ -136,6 +147,18 @@ main(int argc, char * argv[])
             exit(1);
         } else {
             printf("[C] A file transfer can start.\n");
+            timeout_vals[count] = delta.tv_sec * 1000000 + delta.tv_nsec/1000;
+            total += timeout_vals[count];
+            stddev = calculateSD(timeout_vals);
+            to_to_use = total/count + 4 * stddev;
+
+            timeout.tv_sec = to_to_use/1000000;
+            timeout.tv_usec = to_to_use%1000000;
+
+            if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
+                        perror("Error in setting timeout");
+                        exit(EXIT_FAILURE);
+                    }
         }
 
         printf("--Section 1 complete--\n");
@@ -164,7 +187,6 @@ main(int argc, char * argv[])
         unsigned int ptr;
 
         int bytes_sent;
-        int timeout;
         
         // sending each fragment
        for (unsigned int i=0; i<total_frag; i++) {
@@ -210,13 +232,14 @@ main(int argc, char * argv[])
             ptr = ptr + 1;
             memcpy(buf+ptr, data, size);
             ptr = ptr + size;
-
+            
             // repeat sending this fragment
-            timeout = 0;
             while (1) {
+                clock_gettime(CLOCK_REALTIME, &start);
                 bytes_sent = sendto(s, buf, ptr, 0, (struct sockaddr*)&server_addr, server_addrlen);
                 printf("[C] Packet %d of size %d sent\n", frag_no, bytes_sent);
                 int recvlen = recvfrom(s, (char *) tmp, MAX_LINE, 0, (struct sockaddr*)&server_addr, &server_addrlen);
+                clock_gettime(CLOCK_REALTIME, &finish);
 
                 if (recvlen >=0 ) {
                     memcpy(tmp2, "ACK ", 4);
@@ -227,16 +250,25 @@ main(int argc, char * argv[])
                         bzero(data, 1000);
                         break;
                     } 
+                    
+                    sub_timespec(start, finish, &delta);
+                    timeout_vals[count] = delta.tv_sec * 1000000 + delta.tv_nsec/1000;
+                    total += timeout_vals[count];
+                    stddev = calculateSD(timeout_vals);
+                    to_to_use = total/count + 4 * stddev;
+
+                    timeout.tv_sec = to_to_use/1000000;
+                    timeout.tv_usec = to_to_use%1000000;
+
+                    /* set up socket */
+                    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
+                        perror("Error in setting timeout");
+                        exit(EXIT_FAILURE);
+                    }
                 } else {
                     printf("[C] Error no: %d\n", errno);
                     printf("[C] Packet %d not acknowledged, sending again\n", frag_no);
-                    timeout = timeout + 1;
-                    if (timeout >= 16) {
-                        printf("[C] Timeout too many time. Abort\n");
-                        fclose(stream);
-                        close(s);
-                        exit(1);
-                    }
+
                     continue;
                 }
 
@@ -258,4 +290,17 @@ main(int argc, char * argv[])
     close(s);
     exit(1);
 
+}
+
+long calculateSD(long data[]) {
+    long sum = 0, mean, SD = 0;
+    int i;
+    for (i = 0; i < 10; ++i) {
+        sum += data[i];
+    }
+    mean = sum / 10;
+    for (i = 0; i < 10; ++i) {
+        SD += pow(data[i] - mean, 2);
+    }
+    return sqrt(SD / 10);
 }
