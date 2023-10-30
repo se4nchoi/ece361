@@ -22,6 +22,7 @@ struct packet {
 };
 
 void getPacketFromString(struct packet* pkt, int nBytes, char* buf);
+double r2();
 
 
 int
@@ -110,27 +111,33 @@ main(int argc, char * argv[])
                 break;
             }
         }
-
+        double rand;
         // receiving the remaining packets
         // change here to total_frag for correct implementation
         for (int i=1; i<total_frag; i++) {
             while (1) {
+                rand = r2();
+
                 nBytes = recvfrom(s, buf, MAX_LINE, 0, (struct sockaddr *)&client_addr, &client_addrlen);
                 printf("[S] %d bytes received\n", nBytes);
                 getPacketFromString(pkt, nBytes, buf);
-                if (pkt->frag_no!=i){
-                    printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
-                    sendto(s, "NACK", 4, 0, (struct sockaddr*)&client_addr, client_addrlen);
-                } else {
-                    memcpy(tmp, "ACK ", 4);
-                    sprintf(tmp+4, "%d", pkt->frag_no);
-                    sendto(s, tmp, sizeof(tmp), 0, (struct sockaddr*)&client_addr, client_addrlen);
-                    printf("[S] Packet %d acknowledgement sent\n", pkt->frag_no);
+                printf("%f\n", rand);
+                if (rand > 0.5) {
+                    if (pkt->frag_no!=i){
+                        printf("[S] Packet %d received out of sequence, request for retry\n", pkt->frag_no);
+                        sendto(s, "NACK", 4, 0, (struct sockaddr*)&client_addr, client_addrlen);
+                    } else {
+                        memcpy(tmp, "ACK ", 4);
+                        sprintf(tmp+4, "%d", pkt->frag_no);
+                        sendto(s, tmp, sizeof(tmp), 0, (struct sockaddr*)&client_addr, client_addrlen);
+                        printf("[S] Packet %d acknowledgement sent\n", pkt->frag_no);
 
-                    // printf("%s\n", pkt->filedata);
-                    fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
-                    break;
+                        // printf("%s\n", pkt->filedata);
+                        fwrite(pkt->filedata, sizeof(char) , pkt->size , fp );
+                        break;
+                    }
                 }
+
             }
         }
 
@@ -150,4 +157,9 @@ void getPacketFromString(struct packet* pkt, int nBytes, char* buf){
 
     data = pkt->filename + sizeof(pkt->filename) + 1;
     memcpy(pkt->filedata, data, pkt->size);
+}
+
+double r2()
+{
+    return (double)rand() / (double)RAND_MAX ;
 }

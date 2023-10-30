@@ -107,6 +107,7 @@ main(int argc, char * argv[])
     // }
 
     printf("[C] Type in filename (ex. ftp <file name>):\n");
+    gets(buf);
     // scanf("%s\n", buf);
 
     char substr[5];
@@ -129,12 +130,12 @@ main(int argc, char * argv[])
         clock_t resp_time = clock();
 
         // ping server with "ftp"
-        // clock_gettime(CLOCK_REALTIME, &start);
+        clock_gettime(CLOCK_REALTIME, &start);
         sendto(s, "ftp", 3, 0, (struct sockaddr*)&server_addr, server_addrlen);
         // wait for "yes"
         bzero(buf, MAX_LINE);
         recvfrom(s, (char *) buf, MAX_LINE, 0, (struct sockaddr*)&server_addr, &server_addrlen);
-        // clock_gettime(CLOCK_REALTIME, &finish);
+        clock_gettime(CLOCK_REALTIME, &finish);
 
         resp_time = clock() - resp_time;
         double trip_time = ((double)resp_time)/CLOCKS_PER_SEC; // seconds
@@ -147,6 +148,8 @@ main(int argc, char * argv[])
             exit(1);
         } else {
             printf("[C] A file transfer can start.\n");
+
+            sub_timespec(start, finish, &delta);
             timeout_vals[count] = delta.tv_sec * 1000000 + delta.tv_nsec/1000;
             total += timeout_vals[count];
             stddev = calculateSD(timeout_vals);
@@ -162,8 +165,6 @@ main(int argc, char * argv[])
         }
 
         printf("--Section 1 complete--\n");
-
-        sub_timespec(start, finish, &delta);
         // printf("Time passed: %d.%.9ld\n", (int)delta.tv_sec, delta.tv_nsec);
 
         printf("[] Round trip time: %f s\n", trip_time);
@@ -259,16 +260,13 @@ main(int argc, char * argv[])
 
                     timeout.tv_sec = to_to_use/1000000;
                     timeout.tv_usec = to_to_use%1000000;
-
-                    /* set up socket */
+                    /* update timeout */
                     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval)) < 0) {
                         perror("Error in setting timeout");
                         exit(EXIT_FAILURE);
                     }
                 } else {
-                    printf("[C] Error no: %d\n", errno);
                     printf("[C] Packet %d not acknowledged, sending again\n", frag_no);
-
                     continue;
                 }
 
