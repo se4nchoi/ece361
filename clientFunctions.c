@@ -57,10 +57,10 @@ int login(char (*parsedCommands)[MAX_CHAR]) {
     
     char message[2048];
     char buf[2048];
-    send(s, "login", sizeof(message), 0);
+    send(s, "login", 5, 0);
     recv(s, buf, sizeof(buf), 0);
 
-    if (strcmp(buf, "ack")) {
+    if (strcmp(buf, "ack")==0) {
         printf("Acknowledged\n");
     } else {
         printf("Not acknowledged\n");

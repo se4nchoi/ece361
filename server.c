@@ -44,7 +44,7 @@ main(int argc, char * argv[])
         exit(1);
     }
 
-    if ((bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr))) < 0) {
+    if ((bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr))) != 0) {
         perror("[S] simplex-talk: bind");
         exit(1);
     }
@@ -55,7 +55,8 @@ main(int argc, char * argv[])
     } 
     else
         printf("Server listening..\n"); 
-
+    
+    len = sizeof(cli);
     connfd = accept(sockfd, (SA*)&cli, &len); 
     if (connfd < 0) { 
         printf("server accept failed...\n"); 
@@ -65,14 +66,19 @@ main(int argc, char * argv[])
         printf("server accept the client...\n"); 
 
     while (1) {
-        recv(sockfd, buf, sizeof(buf), 0);
+        bzero(buf, sizeof(buf));
+        read(connfd, buf, sizeof(buf));
         printf("Server received: %s\n", buf);
-        if (strcmp(buf, "login")) {
-            send(sockfd, "ack", 3, 0);
-        } else {
-            send(sockfd, "nack", 4, 0);
-        }
+        // if (strcmp(buf, "login")==0) {
+        //     printf("before sent ack\n");
+        //     send(connfd, "ack", 3, 0);
+        //     printf("after sent ack\n");
+        // } else {
+        //     send(connfd, "nack", 4, 0);
+        // }
+        write(connfd, "ack", 3);
     }
+
 
     return 0;
 }
