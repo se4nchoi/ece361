@@ -73,8 +73,7 @@ main()
             // command
             switch (getCommandType(firstWord)) {
                 case 0:
-                    printf("login command\n");
-                    int ret = login(parsedCommands);
+                    login(parsedCommands);
                     break;
                 case 1:
                     printf("logout command\n");

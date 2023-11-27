@@ -8,12 +8,13 @@
 #include <netdb.h>
 #include <sys/stat.h>
 
+#include "message.h"
+
 #define SA struct sockaddr 
 
 #define MAX_CHAR 128
 
 int login(char (*parsedCommands)[MAX_CHAR]) {
-    printf("doing login\n");
 
     char *host, *port;
     struct sockaddr_in client_addr, server_addr;
@@ -53,20 +54,25 @@ int login(char (*parsedCommands)[MAX_CHAR]) {
         exit(0);
     }
     else
-        printf("connected to the server..\n");
+        printf("Connected to the server.......................\n");
     
-    char message[2048];
+    struct message msg;
     char buf[2048];
-    send(s, "login", 5, 0);
+
+    makeLoginMessage(&msg, parsedCommands[1], parsedCommands[2]);
+    messageToString(buf, &msg);
+
+    send(s, buf, sizeof(buf), 0);
+    bzero(buf, 2048);
     recv(s, buf, sizeof(buf), 0);
 
-    if (strcmp(buf, "ack")==0) {
-        printf("Acknowledged\n");
+    if (strcmp(buf, "ACK")==0) {
+        printf("PASSWORD CORRECT\n");
     } else {
-        printf("Not acknowledged\n");
+        printf("INCORRECT USERID/PASSWORD. DISCONNECTING\n");
         close(s);
     }
-    return s;
+    return 1;
 }
 
 void logout() {
