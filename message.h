@@ -23,6 +23,13 @@ void makeLoginMessage(struct message* msg, char* userid, char* password) {
     msg->size = strlen(password);
 }
 
+void makeNewSessionMessage(struct message* msg, char* userid) {
+    msg->type = CREATE;
+    strcpy(msg->source, userid);
+    strcpy(msg->data, "nil");
+    msg->size = 3;
+}
+
 void messageToString(char* buf, struct message* msg) {
     sprintf(buf, "%d", msg->type);
     strcat(buf, ":");
@@ -41,4 +48,5 @@ void stringToMessage(struct message* msg, char* buf) {
     msg->size = atoi(strtok(NULL, ":"));
     strcpy(msg->source, strtok(NULL, ":"));
     strcpy(msg->data, strtok(NULL, ":"));
+
 }

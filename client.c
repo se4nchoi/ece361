@@ -55,6 +55,8 @@ main()
     char buf[MAX_SIZE];
     // client receiving cmd from user
     printf("Client running successfully...\n");
+    char userid[MAX_CHAR];
+    int s;
     while (1) {
         gets(buf);
         printf("buffer: %s\n", buf);
@@ -73,7 +75,8 @@ main()
             // command
             switch (getCommandType(firstWord)) {
                 case 0:
-                    login(parsedCommands);
+                    s = login(parsedCommands);
+                    strcpy(userid, parsedCommands[1]);
                     break;
                 case 1:
                     printf("logout command\n");
@@ -88,8 +91,7 @@ main()
                     leavesession();
                     break;
                 case 4:
-                    printf("create session command\n");
-                    createsession(parsedCommands);
+                    createsession(userid, s);
                     break;
                 case 5:
                     printf("list command\n");

@@ -11,7 +11,7 @@ void joinsession(char (*parsedCommands)[MAX_CHAR]);
 
 void leavesession();
 
-void createsession(char (*parsedCommands)[MAX_CHAR]);
+void createsession(char* userid, int s);
 
 void runList();
 

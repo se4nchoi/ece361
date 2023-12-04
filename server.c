@@ -183,8 +183,23 @@ main(int argc, char * argv[])
                 else
                 {
                     //set the string terminating NULL byte on the end of the data read
-                    buffer[valread] = '\0';
-                    send(sd , buffer , strlen(buffer) , 0 );
+                    // buffer[valread] = '\0';
+                    // send(sd , buffer , strlen(buffer) , 0 );
+                    recv(sd, buffer, sizeof(buffer), 0);
+                    printf("%s\n", buffer);
+                    struct message msg;
+                    stringToMessage(&msg, buffer);
+                    printf("%s\n", buffer);
+                    bzero(buffer, 2048);
+                    
+                    switch(msg.type) {
+                        case CREATE:
+                            printf("Creating session\n");
+
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
         }

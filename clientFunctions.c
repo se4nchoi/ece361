@@ -72,7 +72,7 @@ int login(char (*parsedCommands)[MAX_CHAR]) {
         printf("INCORRECT USERID/PASSWORD. DISCONNECTING\n");
         close(s);
     }
-    return 1;
+    return s;
 }
 
 void logout() {
@@ -89,9 +89,13 @@ void leavesession() {
 
 }
 
-void createsession(char (*parsedCommands)[MAX_CHAR]) {
+void createsession(char* userid, int s) {
     printf("doing createsession\n");
-
+    struct message msg;
+    char buf[2048];
+    makeNewSessionMessage(&msg, userid);
+    messageToString(buf, &msg);
+    send(s, buf, sizeof(buf), 0);
 }
 
 void runList() {
